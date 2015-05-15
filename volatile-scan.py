@@ -5,11 +5,10 @@ import os.path
 from os import walk
 import subprocess
 
-from multiprocessing import process
-
 # Declare global variables
 
 VOLATILITY_MODULES = ["connscan", "sockscan", "psxview", "pstree"]  
+VOLATILITY_COMMAND = "volatility"
 
 # Set up options
 
@@ -45,7 +44,7 @@ class FileScanner:
 
     def scan(self):
         for mod in self.modules:
-            command = ["volatility"]
+            command = [VOLATILITY_COMMAND]
             basename = os.path.splitext(os.path.basename(self.file))[0]
             outputFile = os.path.join(self.dir ,  basename + "_" + mod + ".txt")
             args = ["--file=" + self.file ,  "--profile=" + self.profile,   "--output-file=" +outputFile + " ",   mod]
