@@ -46,7 +46,7 @@ class FileScanner:
         self.profile = profile
 
     def scan(self):
-        pool = ThreadPool(2)
+        pool = ThreadPool(MAX_THREADS)
         for mod in self.modules:
             pool.add_task(self.runmodule,  mod)
         pool.wait_completion()
