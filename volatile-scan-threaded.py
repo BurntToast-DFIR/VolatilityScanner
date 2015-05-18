@@ -132,7 +132,7 @@ class FileScanner:
         print('Running ' + module +' on ' + self.file)
         try:
             DEVNULL = open(devnull,  'wb')
-            #subprocess.call(' '.join(command),  shell=True,  stderr=DEVNULL)
+            subprocess.call(' '.join(command),  shell=True,  stderr=DEVNULL)
             print('Finished running '+ module +' on ' + self.file)
         except:
             print('An error occured running module ' + module)
