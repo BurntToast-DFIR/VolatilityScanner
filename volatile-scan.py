@@ -7,33 +7,33 @@ import subprocess
 
 # Declare global variables
 
-VOLATILITY_MODULES = ["connscan", "sockscan", "psxview", "pstree"]  
-VOLATILITY_COMMAND = "volatility"
+VOLATILITY_MODULES = ['connscan', 'sockscan', 'psxview', 'pstree']  
+VOLATILITY_COMMAND = 'volatility'
 
 # Set up options
 
-parser = OptionParser(usage="%prog [options]",version="1.0")
-parser.add_option("-f","--file", dest="inputFile", help="Single file to scan", metavar="FILE")
-parser.add_option("-d","--directory", dest="inputDir", help="Directory to can", metavar="IN_DIR")
-parser.add_option("-r", "--recursive", action="store_true", dest="recurse", default=False, help="Recurse through subdirectories")
-parser.add_option("-o", "--output", dest="outputDir", help="Output Directory", metavar="OUT_DIR")
-parser.add_option("-p", "--profile", dest="profile", help="Voalitility Ptofile", metavar="PROFILE")
+parser = OptionParser(usage='%prog [options]',version='1.0')
+parser.add_option('-f','--file', dest='inputFile', help='Single file to scan', metavar='FILE')
+parser.add_option('-d','--directory', dest='inputDir', help='Directory to can', metavar='IN_DIR')
+parser.add_option('-r', '--recursive', action='store_true', dest='recurse', default=False, help='Recurse through subdirectories')
+parser.add_option('-o', '--output', dest='outputDir', help='Output Directory', metavar='OUT_DIR')
+parser.add_option('-p', '--profile', dest='profile', help='Voalitility Ptofile', metavar='PROFILE')
 
 (options, args) = parser.parse_args()
 
 # Check that we aren't trying to parse both a single file and a directory
 if options.inputFile and options.inputDir:
-	parser.error("options -f and -d are mutually exclusive.")
+	parser.error('options -f and -d are mutually exclusive.')
 if not (options.inputFile or options.inputDir):
-    parser.error("No input defined.  Try -h or --help for usage info")
+    parser.error('No input defined.  Try -h or --help for usage info')
 
 # Check that all the file system options are correct
 if options.inputFile and not os.path.exists(options.inputFile):
-    parser.error("Cannot find the specified input file")
+    parser.error('Cannot find the specified input file')
 if options.inputDir and not os.path.exists(options.inputDir):
-    parser.error("Cannot find the specified input directory")
+    parser.error('Cannot find the specified input directory')
 if options.outputDir and not os.path.exists(options.outputDir):
-    parser.error("Cannot find the specified output directory")
+    parser.error('Cannot find the specified output directory')
 
 class FileScanner:
     def __init__(self, fileName, outputDir, modules, profile):
@@ -46,10 +46,10 @@ class FileScanner:
         for mod in self.modules:
             command = [VOLATILITY_COMMAND]
             basename = os.path.splitext(os.path.basename(self.file))[0]
-            outputFile = os.path.join(self.dir ,  basename + "_" + mod + ".txt")
-            args = ["--file=" + self.file ,  "--profile=" + self.profile,   "--output-file=" +outputFile + " ",   mod]
+            outputFile = os.path.join(self.dir ,  basename + '_' + mod + '.txt')
+            args = ['--file=' + self.file ,  '--profile=' + self.profile,   '--output-file=' +outputFile + ' ',   mod]
             command.extend(args)
-            print("Attempting to run: " + ' '.join(command))
+            print('Attempting to run: ' + ' '.join(command))
             subprocess.call(' '.join(command),  shell=True)
             
 class DirScanner:
@@ -69,7 +69,7 @@ class DirScanner:
             scanner.scan()
             
             
-if __name__ == "__main__":
+if __name__ == '__main__':
     if options.inputDir:
         scanner = DirScanner(options.inputDir,  options.outputDir,  VOLATILITY_MODULES,  options.profile)
         scanner.scan()
