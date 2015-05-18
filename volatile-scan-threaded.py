@@ -72,12 +72,13 @@ if options.maxThreads:
     
         
 class FileScanner:
-    def __init__(self, fileName, outputDir, modules, profile):
+    def __init__(self, fileName, outputDir, modules, profile, pool):
         self.file = fileName
         self.dir = outputDir
         self.modules = modules
         self.profile = profile
-        
+        self.pool = pool
+
         # Check to see if a profile has been specified, if not then run the imageinfo plugin and allow user to select an option
         global LAST_PROFILE
         if profile == None and LAST_PROFILE <> '':
@@ -115,10 +116,8 @@ class FileScanner:
                             
 
     def scan(self):
-        pool = ThreadPool(MAX_THREADS)
         for mod in self.modules:
-            pool.add_task(self.runmodule,  mod)
-        pool.wait_completion()
+            self.pool.add_task(self.runmodule,  mod)
         
     def runmodule(self, module):
         command = [VOLATILITY_COMMAND]
@@ -139,30 +138,35 @@ class FileScanner:
             e = sys.exc_info()[0]
             write_to_page( 'Error: %s' % e )
 class DirScanner:
-        def __init__(self, dirName, outputDir, modules, profile):
+        def __init__(self, dirName, outputDir, modules, profile, pool):
             self.dir = dirName
             self.outDir = outputDir
             self.modules = modules
             self.profile = profile
-            
+            self.pool = pool
+
         def scan(self):
             for root,  dirs,  files in walk(self.dir):
                 for name in files:
                     self.__scanfile(os.path.join(root, name))
                         
         def __scanfile(self, file):
-            scanner = FileScanner(file,  self.outDir,  self.modules,  self.profile)
+            scanner = FileScanner(file,  self.outDir,  self.modules,  self.profile, self.pool)
             scanner.scan()
             
 if __name__ == '__main__':
-    
+
+    pool = ThreadPool(MAX_THREADS)
+
     if options.inputDir:
-        scanner = DirScanner(options.inputDir,  options.outputDir,  MODULES,  options.profile)
+        scanner = DirScanner(options.inputDir,  options.outputDir,  MODULES,  options.profile, pool)
         scanner.scan()
     else:
-        scanner = FileScanner(options.inputFile,  options.outputDir,  MODULES,  options.profile)
+        scanner = FileScanner(options.inputFile,  options.outputDir,  MODULES,  options.profile, pool)
         scanner.scan()
-    
+
+	pool.wait_completion()
+
     #Search all results if required
     if options.search:
         if options.search == 'IP':
