@@ -1,34 +1,25 @@
 #! /usr/bin/env python
 
 from optparse import OptionParser
-import os
-from os import walk,  devnull, name
+import os.path
+from os import walk,  devnull
 import subprocess
 import threading
 from ThreadPool import ThreadPool
 import re
-import sys 
+import progressbar
+
 
 # Declare global variables
 
 MODULES = ['apihooks', 'cmdscan', 'connections', 'connscan', 'consoles', 'deskscan', 'devicetree', 'dlllist', 'driverirp', \
 'driverscan', 'eventhooks', 'filescan', 'getsids', 'handles', 'hivelist', 'hivescan', 'idt', 'imageinfo', 'kdbgscan', 'ldrmodules', \
 'malfind', 'memmap', 'modscan', 'modules', 'mutantscan', 'netscan', 'pslist', 'psscan', 'pstree', 'psxview', 'sessions', 'shellbags', \
-'shimcache', 'sockets', 'sockscan', 'ssdt', 'svcscan', 'thrdscan', 'unloadedmodules', 'userassist', 'vadinfo', 'vadtree', 'vadwalk', \
-'wndscan', 'strings_asc', 'strings_uni']
+'shimcache', 'sockets', 'sockscan', 'ssdt', 'svcscan', 'thrdscan', 'unloadedmodules', 'userassist', 'vadinfo', 'vadtree', 'vadwalk', 'wndscan']
 
-MAX_THREADS = 100
+MAX_THREADS = 3
 VOLATILITY_COMMAND = 'volatility'
 LAST_PROFILE = ''
-PROGRESS_MAX = len(MODULES)
-MOD_COUNT = 0
-
-# Determine OS
-
-if os.name == 'nt':
-    OS='WIN'
-else: 
-    OS='NIX'
 
 # Set up options
 
@@ -45,7 +36,7 @@ parser.add_option('-t',  '--max-threads',  dest='maxThreads',  help='Max number 
 
 # Check that we aren't trying to parse both a single file and a directory
 if options.inputFile and options.inputDir:
-    parser.error('options -f and -d are mutually exclusive.')
+	parser.error('options -f and -d are mutually exclusive.')
 if not (options.inputFile or options.inputDir):
     parser.error('No input defined.  Try -h or --help for usage info')
 
@@ -71,7 +62,6 @@ if options.moduleList:
                 MODULES.append(module.strip())
     else:
         MODULES = options.moduleList.split(',')
-    PROGRESS_MAX = len(MODULES)
 
 if options.maxThreads:
    try:
@@ -90,7 +80,7 @@ class FileScanner:
         self.modules = modules
         self.profile = profile
         self.pool = pool
-        
+
         # Check to see if a profile has been specified, if not then run the imageinfo plugin and allow user to select an option
         global LAST_PROFILE
         if profile == None and LAST_PROFILE <> '':
@@ -104,7 +94,7 @@ class FileScanner:
             with open(infoFileName) as f:
                 for line in f:
                     if 'Suggested Profile' in line:
-                        suggestedProfiles = line[33:].split(', ')
+                        suggestedProfiles = line[33:].split(', ')top
                         profileCount = 1 
                         print('The following profiles have been found: ' + ', '.join(suggestedProfiles) )
                         for p in suggestedProfiles:
@@ -133,37 +123,24 @@ class FileScanner:
             self.pool.add_task(self.runmodule,  mod)
         
     def runmodule(self, module):
-        global MOD_COUNT 
         command = [VOLATILITY_COMMAND]
         basename = os.path.splitext(os.path.basename(self.file))[0]
         outputFile = os.path.join(self.dir ,  basename + '_' + module + '.txt')
-        if module == 'strings_asc' and OS == 'WIN': 
-            command = ['strings' , '-a', '-q', self.file, '>', outputFile]
-        elif module == 'strings_asc' and OS == 'NIX':
-            command = ['strings', '-a', '-td', self.file, '>', outputFile]
-        elif module == 'strings_uni' and OS == 'WIN':
-            command = ['strings' , '-u', '-q', self.file, '>', outputFile]
-        elif module == 'strings_uni' and OS == 'NIX':
-            command = ['strings', '-a', '-td', '-el', self.file, '>', outputFile]
+        if self.profile == None:
+            args = ['--file=' + self.file ,  '--output-file=' +outputFile + ' ',   module]
         else:
-            if self.profile == None:
-                args = ['--file=' + self.file ,  '--output-file=' +outputFile + ' ',   module]
-            else:
-                args = ['--file=' + self.file ,  '--profile=' + self.profile,   '--output-file=' +outputFile + ' ',   module]
-            command.extend(args)
-        sys.stdout.write('Running ' + module +' on ' + self.file + '\n')
+            args = ['--file=' + self.file ,  '--profile=' + self.profile,   '--output-file=' +outputFile + ' ',   module]
+        command.extend(args)
+        print('Running ' + module +' on ' + self.file)
         try:
             DEVNULL = open(devnull,  'wb')
-            subprocess.call(' '.join(command),  shell=True,  stderr=DEVNULL, stdout=DEVNULL)
-            #self.bar.update(self.bar.currval + 1)
-            if not self.profile == None:
-                MOD_COUNT = MOD_COUNT + 1
-            sys.stdout.write('Finished running '+ module +' on ' + self.file + ' [' + str(MOD_COUNT) + '/' + str(PROGRESS_MAX) + ' Modules complete]\n')
+            subprocess.call(' '.join(command),  shell=True,  stderr=DEVNULL,  stdout=DEVNULL)
+            print('Finished running '+ module +' on ' + self.file)
         except:
             print('An error occured running module ' + module)
             e = sys.exc_info()[0]
             write_to_page( 'Error: %s' % e )
-
+            
             
 class DirScanner:
         def __init__(self, dirName, outputDir, modules, profile, pool):
@@ -172,13 +149,11 @@ class DirScanner:
             self.modules = modules
             self.profile = profile
             self.pool = pool
-            
+
         def scan(self):
-            global PROGRESS_MAX
             for root,  dirs,  files in walk(self.dir):
-                PROGRESS_MAX = len(files) * len (MODULES)
-                for fname in files:
-                    self.__scanfile(os.path.join(root, fname))
+                for name in files:
+                    self.__scanfile(os.path.join(root, name))
                         
         def __scanfile(self, file):
             scanner = FileScanner(file,  self.outDir,  self.modules,  self.profile, self.pool)
@@ -187,16 +162,16 @@ class DirScanner:
 if __name__ == '__main__':
 
     pool = ThreadPool(MAX_THREADS)
-    
+
     if options.inputDir:
         scanner = DirScanner(options.inputDir,  options.outputDir,  MODULES,  options.profile, pool)
         scanner.scan()
     else:
         scanner = FileScanner(options.inputFile,  options.outputDir,  MODULES,  options.profile, pool)
         scanner.scan()
-        
-    pool.wait_completion()
-    
+
+	pool.wait_completion()
+
     #Search all results if required
     if options.search:
         if options.search == 'IP':
@@ -205,15 +180,15 @@ if __name__ == '__main__':
             pattern = re.compile(options.search)
         ofile = open (os.path.join(options.outputDir, 'SearchHits.txt'), 'w+')
         for root,  dirs,  files in walk(options.outputDir):
-            for fname in files:
-                if fname <> 'SearchHits.txt':
-                    ifile = open(os.path.join(root, fname), 'r')
+            for name in files:
+                if name <> 'SearchHits.txt':
+                    ifile = open(os.path.join(root, name), 'r')
                     line = 0
                     for text in ifile.readlines():
                         line = line + 1
                         for match in pattern.finditer(text):
-                            print (fname + '[' + str(line) + ']: ' + match.group())
-                            ofile.write (fname + ',' + str(line) +',' + match.group() + ',' + text + '\n')
+                            print (name + '[' + str(line) + ']: ' + match.group())
+                            ofile.write (name + ',' + str(line) +',' + match.group() + ',' + text + '\n')
                     ifile.close()
         ofile.close()
         
